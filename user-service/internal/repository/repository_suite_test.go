@@ -1,89 +1,112 @@
 package repository_test
 
-// import (
-// 	"database/sql"
-// 	"errors"
-// 	"fmt"
+import (
+	"database/sql"
+	"fmt"
+	"testing"
+	"use/internal/model"
+	"use/internal/repository"
 
-// 	"use/internal/model"
-// 	"use/internal/repository"
+	"github.com/DATA-DOG/go-sqlmock"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+)
 
-// 	"github.com/DATA-DOG/go-sqlmock"
-// 	"github.com/onsi/ginkgo"
-// 	"github.com/onsi/gomega"
-// )
+func TestService(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Repository Suite")
+}
 
-// var _ = ginkgo.Describe("User Repository", func() {
-// 	var (
-// 		db             *sql.DB
-// 		mock           sqlmock.Sqlmock
-// 		userRepo       *repository.UserRepository
-// 		expectedUsers  []model.User
-// 		expectedUser   *model.User
-// 		errExpected    error
-// 		errNotExpected error
-// 	)
+var _ = Describe("User Repository", func() {
+	var (
+		db             *sql.DB
+		mock           sqlmock.Sqlmock
+		userRepo       repository.IUserRepository
+		testUsers  []model.User
+	)
 
-// 	ginkgo.BeforeEach(func() {
-// 		var err error
-// 		db, mock, err = sqlmock.New()
-// 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	BeforeEach(func() {
+		var err error
+		db, mock, err = sqlmock.New()
+		if err != nil {
+			Fail("Failed to create mock DB")
+		}
+		userRepo = repository.NewUserRepository(db)
+		testUsers = make([]model.User, 0)
+		for i := 0; i <= 100; i++ {
+			testUser := model.User{
+				ID:         int64(i),
+				Email:      fmt.Sprintf("user_%d@example.com", i),
+				UserName:   fmt.Sprintf("user_%d", i),
+				FirstName:  fmt.Sprintf("user_%d", i),
+				LastName:   "last_name",
+				UserStatus: "",
+				Department: "dept-1",
+			}
+			testUsers = append(testUsers, testUser)
+		}
+	})
 
-// 		userRepo = repository.NewUserRepository(db)
+	AfterEach(func() {
+		err := mock.ExpectationsWereMet()
+		Expect(err).NotTo(HaveOccurred())
+		db.Close()
+	})
 
-// 		expectedUsers = []model.User{
-// 			model.User{
-// 				ID:        1,
-// 				Email:     "user1@example.com",
-// 				FirstName: "John",
-// 				LastName:  "Doe",
-// 			},
-// 			model.User{
-// 				ID:        2,
-// 				Email:     "user2@example.com",
-// 				FirstName: "Jane",
-// 				LastName:  "Doe",
-// 			},
-// 		}
+	Describe("FindByID", func() {
+		Context("when the user exists", func() {
+			BeforeEach(func() {
+				rows := sqlmock.NewRows([]string{"id", "user_name", "email", "first_name", "last_name", "user_status", "department"}).
+					AddRow(testUsers[0].ID, testUsers[0].UserName, testUsers[0].Email, testUsers[0].FirstName, testUsers[0].LastName, testUsers[0].UserStatus, testUsers[0].Department)
+				mock.ExpectQuery("^SELECT").WithArgs(testUsers[0].ID).WillReturnRows(rows)
+			})
 
-// 		expectedUser = &model.User{
-// 			ID:        1,
-// 			Email:     "user1@example.com",
-// 			FirstName: "John",
-// 			LastName:  "Doe",
-// 		}
+			It("should return the user", func() {
+				user, err := userRepo.FindByID(testUsers[0].ID)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(*user).To(Equal(testUsers[0]))
+			})
+		})
 
-// 		errExpected = errors.New("expected error")
-// 		errNotExpected = errors.New("not expected error")
-// 	})
+		Context("when the user does not exist", func() {
+			BeforeEach(func() {
+				mock.ExpectQuery("^SELECT").WithArgs(testUsers[0].ID).WillReturnError(sql.ErrNoRows)
+			})
 
-// 	ginkgo.AfterEach(func() {
-// 		err := mock.ExpectationsWereMet()
-// 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-// 		db.Close()
-// 	})
+			It("should return an error", func() {
+				_, err := userRepo.FindByID(testUsers[0].ID)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("user not found"))
+			})
+		})
+	})
 
-// 	ginkgo.Describe("FindAll", func() {
-// 		ginkgo.Context("when users exist in the database", func() {
-// 			ginkgo.It("should return a list of users", func() {
-// 				rows := sqlmock.NewRows([]string{"id", "email", "first_name", "last_name"}).
-// 					AddRow(expectedUsers[0].ID, expectedUsers[0].Email, expectedUsers[0].FirstName, expectedUsers[0].LastName).
-// 					AddRow(expectedUsers[1].ID, expectedUsers[1].Email, expectedUsers[1].FirstName, expectedUsers[1].LastName)
-// 				mock.ExpectQuery("SELECT").WillReturnRows(rows)
+	Describe("FindAll", func() {
+		Context("when the users exists in the database", func() {
+			BeforeEach(func() {
+				rows := sqlmock.NewRows([]string{"id", "user_name", "email", "first_name", "last_name", "user_status", "department"})
+				for _, user := range testUsers[:100] {
+					rows.AddRow(user.ID, user.UserName, user.Email, user.FirstName, user.LastName, user.UserStatus, user.Department)
+				}
+				mock.ExpectQuery("SELECT").WillReturnRows(rows)
+			})
+			It("should return all users", func() {
+				users, err := userRepo.FindAll(0, 100)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(users).To(Equal(testUsers[:100]))
+			})
+		})
 
-// 				users, err := userRepo.FindAll(1, 10)
-// 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-// 				gomega.Expect(users).To(gomega.Equal(expectedUsers))
-// 			})
-// 		})
-
-// 		ginkgo.Context("when an error occurs querying the database", func() {
-// 			ginkgo.It("should return an error", func() {
-// 				mock.ExpectQuery("SELECT").WillReturnError(errExpected)
-
-// 				_, err := userRepo.FindAll(1, 10)
-// 				gomega.Expect(err).To(gomega.Equal(fmt.Errorf("failed to query users: %v", errExpected)))
-// 			})
-// 		})
-// 	})
-// })
+		Context("when error in sql connection", func() {
+			BeforeEach(func() {
+				mock.ExpectQuery("SELECT").WillReturnError(sql.ErrConnDone)
+			})
+			It("should return first 10 users", func() {
+				_, err := userRepo.FindAll(1, 10)
+				Expect(err).To(HaveOccurred())
+				expectedErr := fmt.Errorf("failed to query users: %v", sql.ErrConnDone)
+				Expect(err.Error()).To(Equal(expectedErr.Error()))
+			})
+		})
+	})
+})

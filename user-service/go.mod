@@ -7,7 +7,6 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/labstack/echo/v4 v4.10.2
 	github.com/lib/pq v1.10.8
-	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/ginkgo/v2 v2.9.2
 	github.com/onsi/gomega v1.27.6

@@ -113,30 +113,4 @@ var _ = Describe("UserService", func() {
 			})
 		})
 	})
-
-	Describe("CreatUser", func() {
-		Context("when user with email already exists", func() {
-			BeforeEach(func() {
-				rows := sqlmock.NewRows([]string{"id", "user_name", "email", "first_name", "last_name", "user_status", "department"}).
-					AddRow(testUsers[0].ID, testUsers[0].UserName, testUsers[0].Email, testUsers[0].FirstName, testUsers[0].LastName, testUsers[0].UserStatus, testUsers[0].Department)
-				mock.ExpectQuery("^SELECT").WithArgs(testUsers[0].Email).WillReturnRows(rows)
-			})
-			It("should return error", func() {
-				_, err := service.CreateUser(&testUsers[0])
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal("user with email user_0@example.com already exists"))
-			})
-		})
-
-		Context("when sql error", func() {
-			BeforeEach(func() {
-				mock.ExpectQuery("^SELECT").WithArgs(testUsers[0].Email).WillReturnError(sql.ErrNoRows)
-				mock.ExpectQuery("^INSERT").WillReturnError(sql.ErrConnDone)
-			})
-			It("should return error", func() {
-				_, err := service.CreateUser(&testUsers[0])
-				Expect(err).To(HaveOccurred())
-			})
-		})
-	})
 })

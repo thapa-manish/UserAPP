@@ -98,7 +98,6 @@ func (r *UserRepository) Save(user *model.User) (*model.User, error) {
 		Columns("id", "user_name", "email", "first_name", "last_name", "user_status", "department").
 		Values(user.ID, user.UserName, user.Email, user.FirstName, user.LastName, user.UserStatus, user.Department).ToSql()
 	_, err := r.db.Exec(query, args...)
-	fmt.Printf("\nquery:%+v args: %+v\n", query, args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save user: %v", err)
 	}
@@ -133,7 +132,6 @@ func (r *UserRepository) Update(user *model.User) (*model.User, error) {
 	}
 
 	query, args, err := queryBuilder.Where(squirrel.Eq{"id": user.ID}).ToSql()
-	fmt.Println("query: ", query, args)
 	if err != nil {
 		return nil, err
 	}
